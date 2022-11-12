@@ -1,0 +1,154 @@
+---
+title: "GES 600 Final Project Proposal, Fall 2022"
+author: "Tim Williams"
+date: "2022-11-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(here)
+library(baseballr)
+```
+
+## Project Aim and Goals
+
+The aim of my project is to evaluate various metrics of the Baltimore Orioles baseball team when they play games within the migratory range of the Baltimore oriole bird relative to when they play teams outside of the bird's migratory range. This project's primary goal will be to serve as a practical exercise wherein I apply skills learned this semester for exploring, manipulating, and visualizing spatial data. I will also combine two seemingly unrelated data sources, one spatial (bird sightings) and one not spatial (baseball game statistics), to create at least one new and novel data set that will help humankind finally begin to elucidate the relationship between sports teams and the animals upon which they and their legions of fans build their identities.
+
+I fully understand that this project, as currently envisioned, will provide little to no value to either baseball or the field of ornithology. If I find something that others consider useful or beneficial, that's great! But it's not the point. The point is skill building and having fun bringing together worlds that probably don't interact very often and seeing what happens. I should also note that I love baseball but I'm not a bird watcher or bird hobbyist or anything, so this project isn't aimed at bringing together two of my personal disparate hobbies.
+
+I can't imagine any harm will come of this project, but I don't know who benefits from it either. I'm sure there are some bird-watching baseball fans and baseball-loving bird watchers so maybe they would get some enjoyment from this, but I'm pretty sure their lives will proceed as usual regardless of whether I do this project and what I find.
+
+## Data
+
+As of now I plan on using two primary data sources:
+
+-   eBird
+
+    -   This is a database of bird sightings maintained by the Cornell Lab of Ornithology at Cornell University. Sightings are submitted by private citizens around the world and are then vetted autonomously and, if deemed necessary, manually by lab staff before being included in a free, publicly available file. In addition to information about the birds observed, the data also includes location information about the bird sighting at the macro (e.g., country, state) and micro levels (e.g., lat/long, comments such as "my backyard") and when the sighting occurred. Bird sightings are submitted in the form of standardized checklists and [according to the eBird website](https://ebird.org/region/world/regions?yr=curM&hsStats_sortBy=num_checklists) at least one checklist has been submitted from nearly 200 countries, though the vast majority have been from the US and Canada.
+
+    -   While it's an obvious source of bias, the fact that most eBird submissions come from the US and Canada actually works in my favor since the Baltimore oriole is a North American bird and my area of study is limited to countries with Major League Baseball teams (i.e., the US and Canada).
+
+    -   The eBird site linked above notes that there are over 800,000 "eBirders", but it is unclear how many of these folks submit sightings (and how often) and how many just browse the sight or use the data. The qualifications of those submitting checklists is also unknown, but the lab has a vetting process for sightings and I assume anyone who takes the time to send in bird sighting reports to a bird sighting database probably has some specialized knowledge or at least enhanced interest in this field. All the same, this is obviously an active community of contributors and initial data exploration (code below) reveals that there have been just over 1.3 million Baltimore oriole sightings submitted by eBirders and approved by the Cornell Lab of Ornithology since 2007. Observations in the data actually go all the way back to 1882, but I chose 2007 as the earliest year of my study period because it was the first year with more than 10,000 observations and I simply don't need 100+ years of information. I probably don't need 10+ years, but I haven't worked out that detail yet.
+
+```{r}
+
+# Reading in full set. This is all years of data with only Baltimore Oriole observations.
+
+birds <-
+  read.delim(here("data", "ebd_balori_relSep-2022.txt"),
+             header = TRUE,
+             sep = "\t",
+             dec = ".")
+
+
+# Checking how the country variable is formatted so I can filter to only US
+# and Canada since those are the only countries with MLB teams. Also looking
+# at the approved and reviewed variables. All observations in this set have been
+# approved, and the dictionary says that observations can be reviewed if they
+# somehow are flagged during the automated review process. Basically this is a
+# vetted data set so I don't have to worry about excluding potentially low quality
+# observations.
+
+table(birds$COUNTRY)
+
+table(birds$APPROVED)
+
+table(birds$REVIEWED)
+
+# In addition to filtering by country and only keeping observations with
+# non-missing lat/long, also removing a lot of unneeded variables. Many of the
+# variables I keep here are probably not needed either, but that's for figuring out
+# later.
+
+birds_north_america <-
+  birds |>
+  select(COMMON.NAME,
+         OBSERVATION.COUNT,
+         OBSERVATION.DATE,
+         COUNTRY,
+         STATE,
+         STATE.CODE,
+         COUNTY,
+         COUNTY.CODE,
+         BCR.CODE,
+         IBA.CODE,
+         LOCALITY.TYPE,
+         LATITUDE,
+         LONGITUDE,
+         APPROVED,
+         BREEDING.CODE,
+         BREEDING.CATEGORY,
+         BEHAVIOR.CODE) |>
+  filter((COUNTRY == "United States" | COUNTRY == "Canada") &
+         (!is.na(LATITUDE) & !is.na(LONGITUDE)))
+
+# Separating the month and year variables into separate columns.
+
+birds_north_america <- # Yields set with 1,380,444 observations
+  birds_north_america |>
+  mutate(Year = year(OBSERVATION.DATE),
+         Month = month(OBSERVATION.DATE))
+
+# Seeing what years are in here. Turns out the observations run from 1882 to 2022,
+# though with some breaks between the earlier years. Still, I don't want or need 
+# all of those so I'm going to filter. 2007 was the first year with >= 10,000 
+# observations so I'll keep that as the earliest year.
+
+table(birds_north_america$Year)
+
+# Just curious about the distribution of months. Most observations are April to Sept., so spring to the end of summer.
+
+table(birds_north_america$Month)
+
+# Checking the format. Thankfully it's numeric so the filter will be easy.
+
+class(birds_north_america$Year) 
+
+birds_north_america_recent <- # Yields a set with 1,300,994 observations
+  birds_north_america |>
+  filter(Year >= 2007) 
+
+
+```
+
+-   The "baseballr" package
+
+    -   Not a data set on it's own, this is a package with a set of tools that can be used to pull data from various baseball stats sites, including the MLB Stats API.
+
+    -   Admittedly I have not explored this much, [but the package is part of CRAN](https://cran.r-project.org/web/packages/baseballr/vignettes/baseballr.html), and the [package's GitHub page](https://github.com/BillPetti/baseballr/commits/master/DESCRIPTION) shows that the last commit was in September of this year, so it appears to have some legitimacy and continues to be updated/maintained.
+
+    -   I'm not sure how exactly I will use it, but it seems like I can use the package tools to pull game-level stats within defined date ranges, which should allow me to have most or all of what I need. I didn't know this existed until now so I'll probably find ways to use this for fun beyond this project once I learn my way around.
+
+```{r}
+
+ls("package:baseballr")
+
+```
+
+## Approach
+
+Frankly I don't have many details about my approach yet, but here is a (loose) list of planned steps to show some ideas:
+
+-   Review literature on using eBird data to determine bird ranges. A [cursory Google Scholar search](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C21&q=ebird+data&btnG=&oq=ebird) shows that quite a bit has been written on this topic, so it's simply a matter of picking some articles and going through them. I also found an "[eBird Best Practices](https://cornelllabofornithology.github.io/ebird-best-practices/index.html)" article on the Cornell Lab of Ornithology's GitHub page that has information on getting started with and using the data. I haven't finished looking through it, but combining it with the documentation included with the data has made me feel like using the data for this project is viable.
+
+-   Define the range of the Baltimore oriole for each year from 2007 to the present, and then break down the range into smaller chunks of one or more months based on the bird's seasonal movement patterns. For example, if oriole sightings in the eBird data are primarily concentrated in the northeastern US and into Canada from April to June and in the western US from July to September (I'm totally making this up), then games played against teams in the western US from July to September will be considered within the bird's range while those played against the same teams from April to June will not. This will involve learning more about the oriole so I can get a better idea of how to define these seasonal ranges.
+
+-   Once I define the bird ranges, I'll start classifying games played according to whether they took place in the range based on the date and location of the game. One possible source of bias is that the Orioles play more games in Baltimore than anywhere else. I'm not totally sure how or if that will matter, but I'm mindful of it.
+
+-   Next, I'll summarize various statistics for games played in the bird's range versus outside of it. I haven't settled on the full list of statistics yet, in part because I don't know what I'll have access to, but I will definitely do the basics of wins and losses, batting average, earned run average, runs scored, and runs allowed. Probably more than any other American sport, baseball statistics junkies have come up with A LOT of advanced metrics, many of which I don't understand, so I'll have to spend some time looking into these and figuring out what might be interesting.
+
+-   This will largely be a descriptive analysis, so the deliverables will likely take the form of a report and a series of tables or charts showing the differences in metrics for games played within the bird's range versus those played outside of it. Like so much else of this project, I haven't settled on what exactly these tables and/or charts will be, or if there will be any other visualizations.
+
+## Citations
+
+Petti B, Gilani S (2022). \_baseballr: Acquiring and Analyzing Baseball Data\_. R package version 1.3.0,
+
+\<https://CRAN.R-project.org/package=baseballr\>.
+
+eBird Basic Dataset. Version: EBD_relSep-2022. Cornell Lab of Ornithology, Ithaca, New York. Sep 2022.
