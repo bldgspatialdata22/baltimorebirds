@@ -64,9 +64,9 @@ table(birds$REVIEWED)
 # In addition to filtering by country and only keeping observations with
 # non-missing lat/long, also removing a lot of unneeded variables. Many of the
 # variables I keep here are probably not needed either, but that's for figuring out
-# later.
+# later. Also making month and year separate columns.
 
-birds_north_america <-
+birds_north_america <- # Yields set with 1,380,444 observations
   birds |>
   select(COMMON.NAME,
          OBSERVATION.COUNT,
@@ -86,14 +86,10 @@ birds_north_america <-
          BREEDING.CATEGORY,
          BEHAVIOR.CODE) |>
   filter((COUNTRY == "United States" | COUNTRY == "Canada") &
-         (!is.na(LATITUDE) & !is.na(LONGITUDE)))
-
-# Separating the month and year variables into separate columns.
-
-birds_north_america <- # Yields set with 1,380,444 observations
-  birds_north_america |>
+         (!is.na(LATITUDE) & !is.na(LONGITUDE))) |>
   mutate(Year = year(OBSERVATION.DATE),
          Month = month(OBSERVATION.DATE))
+
 
 # Seeing what years are in here. Turns out the observations run from 1882 to 2022,
 # though with some breaks between the earlier years. Still, I don't want or need 
