@@ -1,0 +1,848 @@
+---
+title: "baltimorebirds_exploratory"
+format: html
+editor: visual
+---
+
+## Description
+
+Here's a quick summary of what I aim to accomplish here, as well as a brief description of the project itself from the proposal.
+
+This project is intended to evaluate various metrics of the Baltimore Orioles baseball team when they play games within the migratory range of the Baltimore oriole bird relative to when they play teams outside of the bird's migratory range. Ultimately, I will create a file that combines bird ranges and baseball statistics that will be used to produce a series of simple descriptive tables and/or charts. The purpose of this exploratory document will be to familiarize myself with the data and tools, figure out what exactly the final analytic file or files should look like, and start making it/them. Away we go!
+
+## Exploring eBird
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(here)
+library(baseballr)
+library(dplyr)
+library(crosstable)
+library(ggplot2)
+library(tidygeocoder)
+library(mapview)
+library(sf)
+library(rnaturalearth)
+library(xlsx)
+library(retrosheet)
+library(gt)
+
+```
+
+Bringing the data in and checking some of the variables. Some of this was taken directly from the proposal where I did some light exploratory work. The full eBird file has 1,468,579 observations and 50 variables, but I only want observations from the US and Canada since those are the only countries with MLB teams. Keeping only those two countries makes a set with 1,380,444 observations. For the filtered set, the most important variables to me are country, state, county, latitude, longitude, and observation date. I only keep observations with non-missing lat/long because I plan on defining the borders of the bird range with the locations.
+
+I kept some other bird location variables (BCR, IBA) as well as breeding variables that indicate whether the bird was breeding or exhibiting breeding-related behavior (nesting, courting, feeding babies), but I don't know how much I'll need any of those.
+
+```{r}
+# Reading in full set. This is all years of data with only Baltimore Oriole observations.
+
+birds <-
+  read.delim(here("data", "ebd_balori_relSep-2022.txt"),
+             header = TRUE,
+             sep = "\t",
+             dec = ".")
+
+# Checking how the country variable is formatted so I can filter to only US
+# and Canada since those are the only countries with MLB teams. 
+
+table(birds$COUNTRY)
+
+# In addition to filtering by country and only keeping observations with
+# non-missing lat/long, also removing a lot of unneeded variables and splitting
+# the observation date into separate month, day, and year fields.
+
+birds_north_america <-
+  birds |>
+  select(COMMON.NAME,
+         OBSERVATION.COUNT,
+         OBSERVATION.DATE,
+         COUNTRY,
+         STATE,
+         STATE.CODE,
+         COUNTY,
+         COUNTY.CODE,
+         BCR.CODE,
+         IBA.CODE,
+         LOCALITY.TYPE,
+         LATITUDE,
+         LONGITUDE,
+         APPROVED,
+         BREEDING.CODE,
+         BREEDING.CATEGORY,
+         BEHAVIOR.CODE) |>
+  filter((COUNTRY == "United States" | COUNTRY == "Canada") &
+         (!is.na(LATITUDE) & !is.na(LONGITUDE))) |>
+  mutate(Year = year(OBSERVATION.DATE),
+         Month = month(OBSERVATION.DATE),
+         Day = day(OBSERVATION.DATE))
+
+
+```
+
+Next, I'm looking at the distribution of the year and month variables. Turns out there are observations in this data all the way back to 1882. I don't need this much information, and the Orioles didn't even exist until 1954, so I'm only keeping observations from 2012 and later. I chose 2012 because it has 35,000+ observations and 11 years of data seems like a sufficient sample. [Some of the online eBird documentation describes how to build models](https://cornelllabofornithology.github.io/ebird-best-practices/covariates.html) that use environmental variables like tree cover, land type, etc. to extrapolate bird ranges for years when observations were limited or for areas that don't have any observations. Since I don't know enough about the oriole - or any birds - to know what environmental variables would be relevant I'm hoping that choosing only the years with the most observations will allow me to avoid building models about things I don't understand. Are these criteria arbitrary? Maybe! But that's what I'm going with. Maybe I'll take a stab at some bird model building in the future to extend this analysis to include every year the Orioles have existed.
+
+```{r}
+# Distribution of year.
+
+table(birds_north_america$Year)
+
+
+birds_north_america_recent <- 
+  birds_north_america |>
+  filter(Year >= 2012) 
+
+# Distribution of month as table and bar chart.
+
+table(birds_north_america_recent$Month)
+
+ggplot(data = birds_north_america_recent, 
+       mapping = aes(x = Month)) +
+  geom_bar()
+
+ggplot(data = birds_north_america, 
+       mapping = aes(x = Month)) +
+  geom_bar()
+```
+
+Keeping only observations from 2007 and later yielded a file with 1,300,994 observations, a difference of only \~80,000 from the North American file with all years. I made two bar charts above for the month to compare the distributions in the full North America file and the 2007-and-later file. They're basically the same, probably because relatively few observations were from pre-2007.
+
+## Defining Breeding/Nesting, Wintering, and Migration Seasons
+
+I know ducks and geese travel to breed and to stay warm for the winter, so if the oriole is anything like a duck or a goose (this is going great so far) then they probably do something similar. [How about that, I'm right!](https://www.allaboutbirds.org/guide/balori?__hstc=60209138.746bcc449f52b588906e8e8bf37524df.1666537775673.1668285477520.1668447064010.8&__hssc=60209138.4.1668285487974&__hsfp=2478973190&_gl=1*7ysjlb*_ga*OTM0ODM2NDI5LjE2NjY1Mzc3Nzc.*_ga_QR4NVXZ8BM*MTY2ODQ0OTU2My41LjEuMTY2ODQ0OTU4My40MC4wLjA.&_ga=2.91944735.48957070.1668438601-934836429.1666537777) The purpose of this section is to define these seasons so I can stratify the Orioles' (the baseball team) statistics by whether they're playing teams in the oriole's (the bird) breeding/nesting, wintering, and migration ranges during those seasons.
+
+The link above shows that these ranges are distinct, or at least distinct enough for my purposes, but does not say when the bird is in each or for how long. [Here is a detailed and beautiful look at the oriole's seasons from the eBird folks using eBird data from 2007-2021](https://science.ebird.org/en/status-and-trends/species/balori/range-map). I'm going to use these date ranges since they come from the same data I'm using, with almost the same years, and eBird seems to have a solid reputation for quality bird science. I've simplified the ranges in the code chunk below to only whole months because there are small gaps of several days between the specific ranges in the link above and they pretty much encompass entire months anyways (e.g., breeding season is from June 7 to July 27, pre-breeding migratory is April 5 to May 31).
+
+```{r}
+
+birds_north_america_recent <-
+  birds_north_america_recent |>
+  mutate(season = case_when(
+    (Month == 6 | Month == 7) ~ "Breeding",
+    (Month == 4 | Month == 5) ~ "Pre-breeding Migratory",
+    (Month == 8 | Month == 9 | Month == 10 | Month == 11) ~ "Post-breeding Migratory",
+    TRUE ~ "Non-breeding/Wintering"
+  ))
+
+# Exporting to CSV so I can remove it and free up space.
+
+write.csv(birds_north_america_recent, 
+          "C:/Users/trwil/Documents/baltimorebirds/data/Data out/eBird_US_Canada_2012-2022.csv")
+
+```
+
+## Splitting eBird Files - MOVE THIS TO MUCH LATER
+
+Having 1.3 million observations in a single file is a lot and isn't necessary for this project. I'm going to split the file into separate files, one for each year, so they'll hopefully be easier to work with. Baseball seasons also run nicely within a calendar year and since I'm going to repeat the analysis for each season/year, I think splitting the files up this way makes sense.
+
+```{r}
+
+# Removing the large unneeded data frames to free up space.
+
+remove(birds, birds_north_america)
+
+# Running this so I can confirm each data frame has the correct observation
+# counts for each year.
+
+table(birds_north_america_recent$Year)
+
+# Splitting the files into separate years. Tried to do this with a loop but can't
+# understand how loops work in R so gave up.
+
+
+birds_na_2012 <-
+  birds_north_america_recent |>
+  filter(Year == 2012)
+
+birds_na_2013 <-
+  birds_north_america_recent |>
+  filter(Year == 2013)
+
+birds_na_2014 <-
+  birds_north_america_recent |>
+  filter(Year == 2014)
+
+birds_na_2014 <-
+  birds_north_america_recent |>
+  filter(Year == 2014)
+
+birds_na_2015 <-
+  birds_north_america_recent |>
+  filter(Year == 2015)
+
+birds_na_2016 <-
+  birds_north_america_recent |>
+  filter(Year == 2016)
+
+birds_na_2017 <-
+  birds_north_america_recent |>
+  filter(Year == 2017)
+
+birds_na_2018 <-
+  birds_north_america_recent |>
+  filter(Year == 2018)
+
+birds_na_2019 <-
+  birds_north_america_recent |>
+  filter(Year == 2019)
+
+birds_na_2020 <-
+  birds_north_america_recent |>
+  filter(Year == 2020)
+
+birds_na_2021 <-
+  birds_north_america_recent |>
+  filter(Year == 2021)
+
+birds_na_2022 <-
+  birds_north_america_recent |>
+  filter(Year == 2022)
+```
+
+## Using baseballr to Explore Baseball Data
+
+I'm hoping to put together a yearly file of Baltimore Orioles games where each row contains at least the date of a game, the location, the result, and some team statistics like batting average, OPS, ERA, fielding percentage, and any other advanced or non-advanced metrics I can grab without making things too overwhelming.
+
+Since I've never used this package and don't know what I'm doing I'm just going to mess around with some things here. Note that any function starting with "bref\_" means the data were pulled from [baseball-reference.com](https://www.baseball-reference.com/), anything starting with "mlb\_" was pulled from mlb.com, "fg\_" is fangraphs.com
+
+```{r}
+
+# Pulling all game results for the Orioles from the 2007 season.
+
+orioles_2007 <-
+  bref_team_results("BAL", 2007)
+
+# Pulling batter data from 2010 for July just to see what's there. The full set returned without filtering to BAL contains all batters during that range. I tried 2007 but I don't think it goes back that far because it kept giving errors.
+
+orioles_hitters_2010 <-
+  bref_daily_batter("2010-07-01", "2010-07-31") |>
+  filter(Team == "Baltimore")
+
+# Checking the game pack ID for a game in 2007. I need to link the results to game # information so trying to see if this could be a key.
+
+game_pk_apr_2007 <-
+  mlb_game_pks("2007-04-02")
+
+game_info_apr_2007 <-
+  mlb_game_info(game_pk = 68129)
+
+# Copied this code from an example on the package creator's website. It's batting information by game for a single hitter, in this case JD Martinez in 2017. I need a simple way to get this for every Oriole for each season. There's no default for playerid so I can't leave it blank and filter to only Orioles players (I tried).
+
+test_player <- 
+  fg_batter_game_logs(playerid = c(6184), year = 2017)
+
+
+# This pulls the batting leaderboards. By asking for all hitters regardless of
+# plate appearances or any other restrictions and then filtering to only BAL 
+# hitter I can get season statistics for all BAL hitters.
+
+test_leader <-
+  fg_batter_leaders(2010, 2011, league = "all", qual = "n", ind = 1, exc_p = TRUE)
+
+test_leader <-
+  test_leader |>
+  filter(Team == "BAL")
+
+# Trying batter data from Statcast. This gives waaayy too much information and
+# seems too difficult to work with for what I need.
+
+test_scast_batter <-
+  statcast_search_batters(start_date = "2010-04-04", 
+                          end_date = "2010-04-09",
+                          batterid = NULL)
+# Trying a new package called retrosheet that pulls data from retrosheet.org. 
+# First pulling the game logs for 2012. This might actually be what I need...
+
+test_retrosheet <-
+  getRetrosheet("game", 2012)
+```
+
+After all that poking around with the baseballr package it looks like pulling the data from retrosheet.org with the retrosheet package might be the way to go. I can actually pull retrosheet data with baseballr but that requires extra steps, and using the retrosheet package is easy.
+
+What I'm trying to end up with are yearly files wherein each row is an Orioles game and the columns include their opponent, the location of the game, and various game-level statistics. The retrosheet file has 161 columns, many of which are advanced statistics I'm unfamiliar with, so for the purposes of this project I'm likely going to stick with simple things like batting averages, runs scored vs runs allowed, strikeouts by Orioles hitters and strikeouts thrown by Orioles pitchers, and some other stuff. Here I'm using the 2012 test file made in the chunk above to create a smaller example analytical file that will be a model for the real files I use. [A data dictionary is linked here](https://www.retrosheet.org/gamelogs/glfields.txt), though I'm going to rename many of the variables.
+
+```{r}
+
+orioles_rsheet_2012 <-
+  test_retrosheet |>
+  filter(HmTm == "BAL" | VisTm == "BAL") |>
+  mutate(opponent = case_when(
+    HmTm =="BAL" ~ VisTm,
+    VisTm == "BAL" ~ HmTm)) |>
+  mutate(home_away = case_when(
+    HmTm == "BAL" ~ "Home",
+    VisTm == "BAL" ~ "Away")) |>
+# Stats for Baltimore  
+  mutate(bal_runs = case_when(
+    HmTm == "BAL" ~ HmRuns,
+    VisTm == "BAL" ~ VisRuns)) |>
+  mutate(bal_AB = case_when(
+    HmTm == "BAL" ~ HmAB,
+    VisTm == "BAL" ~ VisAB)) |>
+  mutate(bal_H = case_when(
+    HmTm == "BAL" ~ HmH,
+    VisTm == "BAL" ~ VisH)) |>
+  mutate(bal_doubles = case_when(
+    HmTm == "BAL" ~ HmD,
+    VisTm == "BAL" ~ VisD)) |>
+  mutate(bal_triples = case_when(
+    HmTm == "BAL" ~ HmT,
+    VisTm == "BAL" ~ VisT)) |>
+  mutate(bal_HR = case_when(
+    HmTm == "BAL" ~ HmHR,
+    VisTm == "BAL" ~ VisHR)) |>
+  mutate(bal_RBI = case_when(
+    HmTm == "BAL" ~ HmRBI,
+    VisTm == "BAL" ~ VisRBI)) |>
+  mutate(bal_sac_hits = case_when(
+    HmTm == "BAL" ~ HmSH,
+    VisTm == "BAL" ~ VisSH)) |>
+  mutate(bal_sac_fly = case_when(
+    HmTm == "BAL" ~ HmSF,
+    VisTm == "BAL" ~ VisSF)) |>
+  mutate(bal_HBP = case_when(
+    HmTm == "BAL" ~ HmHBP,
+    VisTm == "BAL" ~ VisHBP)) |>
+  mutate(bal_BB = case_when(
+    HmTm == "BAL" ~ HmBB,
+    VisTm == "BAL" ~ VisBB)) |>
+  mutate(bal_IBB = case_when(
+    HmTm == "BAL" ~ HmIBB,
+    VisTm == "BAL" ~ VisIBB)) |>
+  mutate(bal_hitters_K = case_when(
+    HmTm == "BAL" ~ HmK,
+    VisTm == "BAL" ~ VisK)) |>
+  mutate(bal_SB = case_when(
+    HmTm == "BAL" ~ HmSB,
+    VisTm == "BAL" ~ VisSB)) |>
+  mutate(bal_CS = case_when(
+    HmTm == "BAL" ~ HmCS,
+    VisTm == "BAL" ~ VisCS)) |>
+  mutate(bal_GDP = case_when(
+    HmTm == "BAL" ~ HmGDP,
+    VisTm == "BAL" ~ VisGDP)) |>
+  mutate(bal_LOB = case_when(
+    HmTm == "BAL" ~ HmLOB,
+    VisTm == "BAL" ~ VisLOB)) |>
+  mutate(bal_num_pitchers = case_when(
+    HmTm == "BAL" ~ HmPs,
+    VisTm == "BAL" ~ VisPs)) |>
+  mutate(bal_team_ER = case_when(
+    HmTm == "BAL" ~ HmTER,
+    VisTm == "BAL" ~ VisTER)) |>
+  mutate(bal_WP = case_when(
+    HmTm == "BAL" ~ HmWP,
+    VisTm == "BAL" ~ VisWP)) |>
+  mutate(bal_balks = case_when(
+    HmTm == "BAL" ~ HmBalks,
+    VisTm == "BAL" ~ VisBalks)) |>
+  mutate(bal_assists = case_when(
+    HmTm == "BAL" ~ HmA,
+    VisTm == "BAL" ~ VisA)) |>
+  mutate(bal_errors = case_when(
+    HmTm == "BAL" ~ HmE,
+    VisTm == "BAL" ~ VisE)) |>
+  mutate(bal_pass_balls = case_when(
+    HmTm == "BAL" ~ HmPass,
+    VisTm == "BAL" ~ VisPassed)) |>
+  mutate(bal_double_play = case_when(
+    HmTm == "BAL" ~ HmDB,
+    VisTm == "BAL" ~ VisDB)) |>
+  mutate(bal_triple_play = case_when(
+    HmTm == "BAL" ~ HmTP,
+    VisTm == "BAL" ~ VisTP)) |>
+# Stats for opponent
+  mutate(opp_runs = case_when(
+    HmTm != "BAL" ~ HmRuns,
+    VisTm != "BAL" ~ VisRuns)) |>
+  mutate(opp_AB = case_when(
+    HmTm != "BAL" ~ HmAB,
+    VisTm != "BAL" ~ VisAB)) |>
+  mutate(opp_H = case_when(
+    HmTm != "BAL" ~ HmH,
+    VisTm != "BAL" ~ VisH)) |>
+  mutate(opp_doubles = case_when(
+    HmTm != "BAL" ~ HmD,
+    VisTm != "BAL" ~ VisD)) |>
+  mutate(opp_triples = case_when(
+    HmTm != "BAL" ~ HmT,
+    VisTm != "BAL" ~ VisT)) |>
+  mutate(opp_HR = case_when(
+    HmTm != "BAL" ~ HmHR,
+    VisTm != "BAL" ~ VisHR)) |>
+  mutate(opp_RBI = case_when(
+    HmTm != "BAL" ~ HmRBI,
+    VisTm != "BAL" ~ VisRBI)) |>
+  mutate(opp_sac_hits = case_when(
+    HmTm != "BAL" ~ HmSH,
+    VisTm != "BAL" ~ VisSH)) |>
+  mutate(opp_sac_fly = case_when(
+    HmTm != "BAL" ~ HmSF,
+    VisTm != "BAL" ~ VisSF)) |>
+  mutate(opp_HBP = case_when(
+    HmTm != "BAL" ~ HmHBP,
+    VisTm != "BAL" ~ VisHBP)) |>
+  mutate(opp_BB = case_when(
+    HmTm != "BAL" ~ HmBB,
+    VisTm != "BAL" ~ VisBB)) |>
+  mutate(opp_IBB = case_when(
+    HmTm != "BAL" ~ HmIBB,
+    VisTm != "BAL" ~ VisIBB)) |>
+  mutate(opp_hitters_K = case_when(
+    HmTm != "BAL" ~ HmK,
+    VisTm != "BAL" ~ VisK)) |>
+  mutate(opp_SB = case_when(
+    HmTm != "BAL" ~ HmSB,
+    VisTm != "BAL" ~ VisSB)) |>
+  mutate(opp_CS = case_when(
+    HmTm != "BAL" ~ HmCS,
+    VisTm != "BAL" ~ VisCS)) |>
+  mutate(opp_GDP = case_when(
+    HmTm != "BAL" ~ HmGDP,
+    VisTm != "BAL" ~ VisGDP)) |>
+  mutate(opp_LOB = case_when(
+    HmTm != "BAL" ~ HmLOB,
+    VisTm != "BAL" ~ VisLOB)) |>
+  mutate(opp_num_pitchers = case_when(
+    HmTm != "BAL" ~ HmPs,
+    VisTm != "BAL" ~ VisPs)) |>
+  mutate(opp_team_ER = case_when(
+    HmTm != "BAL" ~ HmTER,
+    VisTm != "BAL" ~ VisTER)) |>
+  mutate(opp_WP = case_when(
+    HmTm != "BAL" ~ HmWP,
+    VisTm != "BAL" ~ VisWP)) |>
+  mutate(opp_balks = case_when(
+    HmTm != "BAL" ~ HmBalks,
+    VisTm != "BAL" ~ VisBalks)) |>
+  mutate(opp_assists = case_when(
+    HmTm != "BAL" ~ HmA,
+    VisTm != "BAL" ~ VisA)) |>
+  mutate(opp_errors = case_when(
+    HmTm != "BAL" ~ HmE,
+    VisTm != "BAL" ~ VisE)) |>
+  mutate(opp_pass_balls = case_when(
+    HmTm != "BAL" ~ HmPass,
+    VisTm != "BAL" ~ VisPassed)) |>
+  mutate(opp_douple_play = case_when(
+    HmTm != "BAL" ~ HmDB,
+    VisTm != "BAL" ~ VisDB)) |>
+  mutate(opp_triple_play = case_when(
+    HmTm != "BAL" ~ HmTP,
+    VisTm != "BAL" ~ VisTP)) |>
+  
+  mutate(game_result = case_when(
+    bal_runs > opp_runs ~ "Win",
+    bal_runs < opp_runs ~ "Loss")) |>
+  
+  mutate(Year = substr(Date, 1, 4),
+         Month = substr(Date, 5, 6),
+         Day_num = substr(Date, 7, 8))|>
+  
+  mutate(bal_BA = bal_H / bal_AB,
+         opp_BA = opp_H / opp_AB) |>
+  mutate(across(c(bal_BA, opp_BA), round, 3)) |>
+# Keep only new vars and a few old vars.
+  select(Date, Year, Month, Day_num, Day, DayNight, ParkID, game_result,
+         opponent:bal_runs,
+         bal_BA,
+         bal_AB:opp_runs,
+         opp_BA,
+         opp_AB:opp_triple_play)
+```
+
+I have both the desired baseball information and bird information, so now what? How about some basic descriptives to make sure everything looks ok.
+
+```{r}
+summary(orioles_rsheet_2012$bal_runs)
+summary(orioles_rsheet_2012$opp_runs)
+
+table(orioles_rsheet_2012$game_result) # they were actually good this year!
+
+# Runs by home and away.
+
+ggplot(orioles_rsheet_2012, aes(x=home_away, y=bal_runs)) +
+  geom_bar(stat = "identity")
+
+# average batting average by opponent.
+
+ggplot(orioles_rsheet_2012, aes(x=opponent, y=bal_BA)) +
+  stat_summary(geom = "bar", fun.y = "mean")
+
+# average runs by opponent. evidently beat the shit out of Pittsburgh in 2012.
+
+ggplot(orioles_rsheet_2012, aes(x=opponent, y=bal_runs)) +
+  stat_summary(geom = "bar", fun.y = "mean")
+
+# average runs by stadium. this is getting closer to what I'm eventually
+# looking for.
+
+ggplot(orioles_rsheet_2012, aes(x=ParkID, y=bal_runs)) +
+  stat_summary(geom = "bar", fun.y = "mean")
+```
+
+## Identifying Games In and Out of Bird Ranges
+
+I want to be able to tell whether games were played (a) physically within one of the migratory/breeding ranges of the oriole and (b) temporally within one of the ranges. For (a) I need to add location information to the game data. First I'm going to add a variable with the city the game was played in and then use tidygeocoder to find centroids. Even though they don't play every team every year I'm still doing all of them so the same code can be used for each year.
+
+IMPORTANT NOTE: New York City is successfully geocoded but it isn't picked up in the spatial join, at least for the breeding range. I don't know why it's not picked up even though Philly, Boston, and Baltimore all are. The solution here is to use a different NY city, so I chose Buffalo because it's way in the west of the state. Changing the city like this shouldn't mess with anything really since I'm not interested in differing characteristics of any of the cities (e.g., temperature, flora/fauna, etc.), only their locations. It also seems reasonable to think NYC should be included in the range if it's missed by the spatial join when other nearby cities are picked up in the join and it pretty clearly looks like NYC is in the range based on the maps using the data.
+
+```{r}
+orioles_rsheet_2012 <-
+  orioles_rsheet_2012 |>
+  mutate(city = case_when(
+    home_away == "Home" ~ "Baltimore",
+    
+    home_away == "Away" & opponent == "CHA" ~ "Chicago",
+    home_away == "Away" & opponent == "CLE" ~ "Cleveland",
+    home_away == "Away" & opponent == "DET" ~ "Detroit",
+    home_away == "Away" & opponent == "KCA" ~ "Kansas City",
+    home_away == "Away" & opponent == "MIN" ~ "Minneapolis",
+    
+    home_away == "Away" & opponent == "BOS" ~ "Boston",
+    home_away == "Away" & opponent == "NYA" ~ "Buffalo",
+    home_away == "Away" & opponent == "TBA" ~ "Tampa",
+    home_away == "Away" & opponent == "TOR" ~ "Toronto",
+    
+    home_away == "Away" & opponent == "HOU" ~ "Houston",
+    home_away == "Away" & opponent == "ANA" ~ "Anaheim",
+    home_away == "Away" & opponent == "OAK" ~ "Oakland",
+    home_away == "Away" & opponent == "SEA" ~ "Seattle",
+    home_away == "Away" & opponent == "TEX" ~ "Dallas",
+    
+    home_away == "Away" & opponent == "CHN" ~ "Chicago",
+    home_away == "Away" & opponent == "CIN" ~ "Cincinnati",
+    home_away == "Away" & opponent == "MIL" ~ "Milwaukee",
+    home_away == "Away" & opponent == "PIT" ~ "Pittsburgh",
+    home_away == "Away" & opponent == "SLN" ~ "St. Louis",
+    
+    home_away == "Away" & opponent == "ATL" ~ "Atlanta",
+    home_away == "Away" & opponent == "MIA" ~ "Miami",
+    home_away == "Away" & opponent == "NYN" ~ "Buffalo",
+    home_away == "Away" & opponent == "PHI" ~ "Philadelphia",
+    home_away == "Away" & opponent == "WAS" ~ "Washington, DC",
+    
+    home_away == "Away" & opponent == "ARI" ~ "Phoenix",
+    home_away == "Away" & opponent == "COL" ~ "Denver",
+    home_away == "Away" & opponent == "LAN" ~ "Los Angeles",
+    home_away == "Away" & opponent == "SDN" ~ "San Diego",
+    home_away == "Away" & opponent == "SFN" ~ "San Francisco"
+  ))
+
+orioles_rsheet_2012 <-
+  geocode(orioles_rsheet_2012, 
+          city = city,
+          method = "osm")
+```
+
+Now I'm using the same code I used for the bird data to create a variable indicating what part of the bird's "season" the team played in.
+
+```{r}
+orioles_rsheet_2012 <-
+  orioles_rsheet_2012 |>
+  mutate(bird_season = case_when(
+    (Month == "06" | Month == "07") ~ "Breeding",
+    (Month == "04" | Month == "05") ~ "Pre-breeding Migratory",
+    (Month == "08" | Month == "09" | Month == "10" | Month == "11") ~ "Post-breeding Migratory",
+    TRUE ~ "Non-breeding/Wintering"
+  ))
+
+# Quick tab.
+
+table(orioles_rsheet_2012$bird_season)
+
+```
+
+The distribution of games across the bird's seasons is better than I hoped or expected: the team's season is broken up into nearly equal parts of the breeding (53 games), post-breeding migratory (58 games), and pre-breeding migratory bird seasons (51 games). This is of course only for 2012 but I expect each MLB season in the study period will be distributed similarly.
+
+Now, I'm going to try and use the eBird data for 2012 to create polygons of ranges based on the locations.
+
+```{r}
+# Filtering to only 2012.
+
+birds_na_2012_sf <-
+  birds_north_america_recent |>
+  filter(Year == 2012) |>
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"),
+           crs = 4326)
+  
+
+mapview(birds_na_2012_sf)
+```
+
+There are some points that I would consider to be outliers. I don't have a strict definition for outlier here, but comparing the map of the 2012 observations to the bird range map linked way earlier from eBird, I think the single point in California, for example, should be treated as outside the normal range. This is kind of arbitrary but I'm going to define the ranges by tracing the edges of the outermost points, and keeping this single observation is going to extend the range too much. I'd like to find the states with the lowest proportion of observations and remove them.
+
+```{r}
+
+# Finding counts by state and adding the counts as a long variable, then
+# using the counts to find percentile ranks.
+
+birds_na_2012 <-
+  birds_na_2012 |>
+  add_count(STATE, name = "state_count") |>
+  mutate(state_perc = percent_rank(state_count))
+
+# Summarizing percentile to get an idea of where the low cutoff should be.
+
+summary(birds_na_2012$state_perc)
+
+# Seeing how many observations would be removed at certain cutoffs.
+
+birds_na_2012 |>
+  filter(state_perc <= 0.00001)|> # .001% percentile
+  count(STATE)
+
+birds_na_2012 |>
+  filter(state_perc <= 0.0001)|> # .01% percentile
+  count(STATE)
+
+birds_na_2012 |>
+  filter(state_perc <= 0.01)|> # .1% percentile
+  count(STATE)
+```
+
+Removing the bottom 0.01 percentile removes only 8 observations, but they're in California (1), New Mexico (6), and Wyoming (1). Going up to 0.1 percentile includes 13 total states, some of which have dozens of observations and can reasonably be said to be located in the bird's range. The bottom 0.01 percentile has to go!
+
+Trying the map again but filtering out the bottom 0.01 percentile of states.
+
+```{r}
+
+# Adding the counts and percentiles to the sf version.
+
+birds_na_2012_sf <-
+  birds_na_2012_sf |>
+  add_count(STATE, name = "state_count") |>
+  mutate(state_perc = percent_rank(state_count))
+
+
+birds_na_2012_sf |>
+  filter(state_perc >= 0.0001) |>
+  mapview()
+```
+
+Looks good to me! There's one rogue point way out in east Texas but it shouldn't mess anything up to keep it and I really don't want to start picking individual points for removal since I'd then have to do it for every year.
+
+Now for the good stuff: mapping out the seasonal ranges!
+
+```{r}
+
+# Reminder of what the seasons are.
+
+table(birds_na_2012_sf$season)
+
+# Pre-breeding migratory only.
+
+birds_na_2012_sf |>
+  filter(season == "Pre-breeding Migratory") |>
+  mapview()
+
+# Breeding season only.
+
+birds_na_2012_sf |>
+  filter(season == "Breeding") |>
+  mapview()
+
+# Post-breeding migratory only.
+
+birds_na_2012_sf |>
+  filter(season == "Post-breeding Migratory") |>
+  mapview()
+
+# Non-breeding/Wintering only
+
+birds_na_2012_sf |>
+  filter(season == "Non-breeding/Wintering") |>
+  mapview()
+
+```
+
+Other than the non-breeding/wintering observations, which make up the smallest group by far, the distribution of observations looks fairly similar across seasons. Maybe a faceted map for easier comparison? Sure!
+
+I'm attempting to make a faceted map of the points by each season. First I'm using the natural earth package to get a map of the US and Canada from the world map, then ggplot to make the faceted map. It's a rough map and definitely needs to be cleaned before presenting anywhere but here, but it works, and confirms that the ranges are pretty much the same according to my definition.
+
+```{r}
+
+
+
+us_canada <-
+  ne_countries(scale = "medium", returnclass = "sf") |>
+  filter(type == "Country" | type == "Sovereign country") |>
+  filter(sovereignt == "United States of America" | sovereignt == "Canada")
+
+ggplot() +
+  geom_sf(data = us_canada) +
+  coord_sf(xlim = c(-125.0, -55.0), ylim = c(20.0, 55.0)) +
+  geom_point(data = birds_na_2012, aes(x = LONGITUDE, y = LATITUDE, color = "red")) +
+  facet_wrap(~ season)
+
+
+
+
+```
+
+I have an idea:
+
+1.  Split the Orioles stats file into three according to the bird seasons in which the games were played. There will be three files because the baseball season only overlaps three of the bird seasons.
+2.  Make three separate maps like the one in the chunk above for each bird season. This can be done by splitting the bird observations according to season as well (side note - I can also remove the non-breeding/wintering observations much earlier in the process to reduce the file size) and then making three cropped maps.
+3.  Left spatial join each of the three Orioles stats files with the matching cropped bird range season map.
+4.  The games played in the seasonal bird ranges will now have extra populated columns, so make a flag based on these new columns: 1 if the new column has something, i.e., the game was played in the range, and 0 if the column has a missing value, i.e., the game was played out of the range. Then put the three Orioles stats files back together (bind_rows), drop all the new variables except for the flag, and delete all of the extra files that were made during this process. The resulting file will have everything I need to run grouped analyses.
+5.  ???
+6.  Profit!
+
+**START HERE. THE SPATIAL JOIN ISN'T PICKING UP NYC. FIGURE OUT A WORKAROUND, PROBABLY JUST USING A DIFFERENT CITY NAME BESIDES NYC.**
+
+```{r}
+
+# Step 1.
+
+orioles_rsheet_breeding_2012 <-
+  orioles_rsheet_2012 |>
+  filter(bird_season == "Breeding")|>
+  st_as_sf(coords = c("long", "lat"),
+           crs = 4326)
+
+orioles_rsheet_pre_breeding_2012 <-
+  orioles_rsheet_2012 |>
+  filter(bird_season == "Pre-breeding Migratory")|>
+  st_as_sf(coords = c("long", "lat"),
+           crs = 4326)
+
+orioles_rsheet_post_breeding_2012 <-
+  orioles_rsheet_2012 |>
+  filter(bird_season == "Post-breeding Migratory")|>
+  st_as_sf(coords = c("long", "lat"),
+           crs = 4326)
+
+# Step 2. I tried using pipes to do each of these in one step but it didn't work.
+
+birds_na_2012_sf_breeding <-
+  birds_na_2012_sf |>
+  filter(season == "Breeding")
+
+birds_na_2012_sf_pre_breeding <-
+  birds_na_2012_sf |>
+  filter(season == "Pre-breeding Migratory")
+
+birds_na_2012_sf_post_breeding <-
+  birds_na_2012_sf |>
+  filter(season == "Post-breeding Migratory")
+
+breed_range_2012 <-
+  st_crop(us_canada, birds_na_2012_sf_breeding)|>
+  st_transform(crs = 4326)
+
+pre_breed_range_2012 <-
+  st_crop(us_canada, birds_na_2012_sf_pre_breeding)|>
+  st_transform(crs = 4326)
+
+post_breed_range_2012 <-
+  st_crop(us_canada, birds_na_2012_sf_post_breeding)|>
+  st_transform(crs = 4326)
+
+ggplot(data = breed_range_2012) +
+  geom_sf()
+
+ggplot(data = pre_breed_range_2012) +
+  geom_sf()
+
+ggplot(data = post_breed_range_2012) +
+  geom_sf()
+
+# Step 3.
+
+orioles_rsheet_breeding_2012 <-
+  st_join(orioles_rsheet_breeding_2012, breed_range_2012)
+
+orioles_rsheet_pre_breeding_2012 <-
+  st_join(orioles_rsheet_pre_breeding_2012, pre_breed_range_2012)
+
+orioles_rsheet_post_breeding_2012 <-
+  st_join(orioles_rsheet_post_breeding_2012, post_breed_range_2012)
+
+# Step 4.
+
+orioles_rsheet_final_2012 <-
+  orioles_rsheet_breeding_2012 |>
+  bind_rows(orioles_rsheet_pre_breeding_2012, orioles_rsheet_post_breeding_2012) |>
+  mutate(range_flag = case_when(
+    !is.na(scalerank) ~ "In Range", # any var from range map will work
+    TRUE ~ "Out of Range")) |>
+  select(Date:bird_season, range_flag)
+
+
+```
+
+With the final data set together, we can start analyzing and making tables.
+
+```{r}
+orioles_rsheet_final_2012 |>
+  group_by(bird_season, range_flag) |>
+
+  summarise(mean_bal_BA = mean(bal_BA),
+            mean_opp_BA = mean(opp_BA),
+            games = n()) |>
+
+  st_drop_geometry() |> # drop or it will display in table
+  
+  gt() |>
+  tab_header(
+    title = md("**Baltimore Orioles 2012**"), # md("** **") makes label bold
+    subtitle = "Selected Batting Stats"
+  ) |>
+  cols_move_to_start(
+    columns = c(range_flag, games)
+  ) |>
+  fmt_number(
+    columns = games,
+    decimals = 0
+  ) |>
+  cols_label(
+    range_flag = html("Season & In <br>or Out of Range"),
+    games = html("# of <br>Games"),
+    mean_bal_BA = html("Mean <br>BAL BA"),
+    mean_opp_BA = html("Mean <br>Opp. BA")
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_BA, mean_opp_BA),
+    decimals = 3
+  )
+  
+```
+
+I finally (sort of) learned the R equivalent of SAS macros!! Here's an example. I don't know how much more efficient it is in this case but it can probably be used elsewhere.
+
+```{r}
+
+# Step 1.
+
+os_breed_seasons = function(yr, seas) {
+  return(yr |>
+           filter(bird_season ==seas))
+}
+
+orioles_rsheet_breeding_2012 <- 
+  os_breed_seasons(yr = orioles_rsheet_2012, seas = "Breeding")
+
+
+
+
+subsetting = function(yr, seas) {
+  return(yr |>
+           filter(season ==seas))
+}
+
+birds_na_2012_sf_pre_breeding <- 
+  subsetting(yr = birds_na_2012_sf, seas = "Pre-breeding Migratory")
+```
+
+Notes about assumptions and ways around data quirks:
+
+-   Games completed at a later date ("Completion" variable) are still considered to have been played and completed on the originally scheduled date ("Date" variable), regardless of the reason for the postponement.
+
+-   I'm only doing regular season. Should not be much of an issue.
+
+-   I'm also not considering the "Forfeit" or "Protest" variables. Wins and losses are decided simply by comparing the Orioles' score to the opponents' score.
+
+-   No special treatment for doubleheaders or tripleheaders.
+
+-   Because some teams built new stadiums during the study period I'm going to use the centroid of each team's city as the location, not the location of the stadium.
