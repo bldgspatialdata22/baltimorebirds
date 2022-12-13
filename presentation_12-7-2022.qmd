@@ -1,0 +1,93 @@
+---
+title: "The Baltimore Orioles and Baltimore orioles"
+author: "Tim Williams"
+format: revealjs
+editor: visual
+---
+
+## Project Overview
+
+-   Described performance of the Baltimore Orioles baseball team when they played ***during*** the breeding/migratory seasons and ***within*** the breeding/migratory ranges of the Baltimore oriole bird.
+-   Used bird sighting data to define breeding/migratory ranges and game logs to evaluate team performance.
+-   Did this for each MLB season from 2012 to 2021.
+
+## Project Goals
+
+-   My primary goal was to use this project as a practical exercise to help apply and strengthen the skills learned in this class, including data (spatial and otherwise) manipulation in R and working with GitHub.
+
+-   I also wanted to use both spatial and non-spatial data and make them of equal importance to the project.
+
+-   My goal was never to find (or do) anything meaningful, and any interesting findings would have been a nice surprise.
+
+## Data - eBird
+
+-   Oriole ranges were determined using eBird data from The Cornell Lab of Ornithology at Cornell University.
+
+-   eBird is a database of bird sightings submitted by private citizens around the world. Sightings are vetted autonomously and, if deemed necessary, manually by lab staff before being included in a free, publicly available file.
+
+-   Sightings are used for conservation, education, and research, and the eBird lab provides resources to birders to make the hobby more enjoyable.
+
+-   While eBird data is free and publicly available, it must be requested.
+
+## Data - Retrosheet {.smaller}
+
+-   All Orioles metrics were obtained as game logs via Retrosheet.
+
+-   Retrosheet is a website with loads of information on Major League games, players, managers, rosters, and even play-by-play, going all the way back to 1877 in some cases.
+
+-   Retrosheet was created in the 1980s to compile and computerize MLB game accounts. They claim on their website that they have proofed and computerized 92% of play-by-play accounts for all games played between 1901 and 2017.
+
+-   All data are free to download directly from the Retrosheet website, usually as a text file.
+
+## Methods {.smaller}
+
+-   Determined breeding/migratory seasons and which each bird sighting and game occurred in. Geocoded Orioles games using OpenStreetMap via tidygeocoder.
+
+-   Split each year of eBird into separate files by breeding season and cropped a map of US and Canada to the observations to find seasonal ranges. Split each year of Orioles games by breeding season.
+
+-   Performed spatial join of bird ranges and games to find which games were played within ranges.
+
+-   Appended separate game logs back together to make a file with game stats and breeding range and breeding season info for each year. Also appended each season together to make master file.
+
+-   Made tables comparing average batting, pitching, and fielding metrics for O's vs opponents during each breeding season, and within range vs out of range.
+
+## Packages, Resources
+
+-   The retrosheet package was used to download game logs from the website for immediate use in R. Began with the baseballr package but it would have required extensive data manipulation.
+
+-   eBird comes with instructions for use of the AUK package, but this was unnecessary for this project, and used the eBird website to determine oriole breeding/migratory seasons.
+
+-   Other packages used:
+
+    |               |              |         |           |
+    |---------------|--------------|---------|-----------|
+    | rnaturalearth | tidygeocoder | mapview | tidyverse |
+    | gt            | here         | sf      | ggplot2   |
+
+## Challenges
+
+-   Keeping the project from being too simple without making it unnecessarily difficult.
+
+-   Working with bird sighting data with no experience or knowledge.
+
+-   What type of output makes sense? Tables? Maps? Graphs?
+
+-   GitHub is still confusing.
+
+## How Did It Go? {.smaller}
+
+-   Overall I accomplished what I set out to do.
+
+-   I combined data from very unlike disciplines to create a novel data set.
+
+-   I (sort of) streamlined my workflow to perform the same operations on multiple years of data concisely.
+
+-   Things that could have been done differently:
+
+    -   More and prettier visualizations would have been nice.
+
+    -   Coding could have been more efficient.
+
+    -   eBird can be used to create models that more accurately determine ranges.
+
+    -   Statistical tests to add the illusion of rigor.
