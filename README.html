@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.269">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>readme</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="README_files/libs/clipboard/clipboard.min.js"></script>
+<script src="README_files/libs/quarto-html/quarto.js"></script>
+<script src="README_files/libs/quarto-html/popper.min.js"></script>
+<script src="README_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="README_files/libs/quarto-html/anchor.min.js"></script>
+<link href="README_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="README_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="README_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="README_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="README_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+<section id="baltimorebirds" class="level1">
+<h1>baltimorebirds</h1>
+<!-- badges: start -->
+<!-- badges: end -->
+<p>baltimorebirds is my final project for the course GES 600, Building Spatial Data Sets, taught by Eli Pousson in the Department of Geography and Environmental Systems at the University of Maryland, Baltimore County.</p>
+<p>The purpose of this project is to evaluate various metrics of the Baltimore Orioles baseball team when they play games within the breeding grounds and during the breeding season of the Baltimore oriole bird relative to when they play teams outside of the bird’s breeding grounds and breeding season. Using eBird data from <a href="https://ebird.org/home">The Cornell Lab of Ornithology</a> I divided the baseball season into four bird breeding seasons: Pre-breeding Migratory, Breeding, Post-breeding Migratory, and Non-breeding/Wintering. I then defined geographic breeding season “ranges” across the United States and Canada based on where the oriole had been observed during each of the four breeding seasons. Next, I used game-level data from the baseball statistics website <a href="https://www.retrosheet.org/">Retrosheet</a> to find dates and locations for Orioles games each year from 2012 to 2021 to find when the Orioles played (a) <em>during</em> each of the bird’s breeding seasons and (b) <em>within</em> each of the bird’s geographic breeding season ranges. Tables were then made using the same Retrosheet data to make intra- and inter-breeding season comparisons of various aggregate hitting, pitching, and fielding statistics.</p>
+<p>This project’s primary goal is to serve as a practical exercise wherein I apply skills learned this semester for exploring, manipulating, and visualizing spatial data. I also combine two allegedly unrelated data sources, one spatial (bird sightings) and one not spatial (baseball game statistics), to create at least one new and novel data set to help humankind finally begin elucidating the mysterious relationship between sports teams and the animals upon which they and their legions of fans build their identities.</p>
+<p>I fully understand that this project, as originally envisioned and ultimately executed, will provide little to no value to either baseball or the field of ornithology. If I found something that others consider useful or beneficial, that’s great! But it is not and was never the point. The point is skill building and having fun bringing together worlds that probably don’t interact very often and seeing what happens. I should also note that I love baseball but I’m not a bird watcher or bird hobbyist or anything, so I must beg forgiveness for any affronts to the field of ornithology that this project almost certainly contains.</p>
+<section id="whats-in-this-repo" class="level2">
+<h2 class="anchored" data-anchor-id="whats-in-this-repo">What’s in this repo?</h2>
+<p>A bunch of stuff, but I’ll point out the notable pieces here. The Quarto markdown (.qmd) file titled “baltimorebirds_proposal” is an outline of the project as I envisioned it before actually starting it. I mostly stuck to the plan laid out in this document, though I did end up trading out the baseballr package for the retrosheet package because the latter package parsed baseball data and brought it into R already in the shape I needed whereas data obtained using the former package would have required a bit more work.</p>
+<p>The .qmd file titled “baltimorebirds_exploratory” is where I played around with packages and data to see what I had and what I could do. There’s a lot of trial and error in here but I was eventually able to find the approach that I used for the final product. I didn’t bother cleaning this file up much so there are a lot of thoughts and comments to myself, and parts of the document don’t seem to have a logical order. It seems more honest to leave it as is. Also I’m lazy.</p>
+<p>The “baltimorebirds_site” folder contains what could be considered the final deliverable for this project. There are several .qmd files in this folder that, when rendered as HTML together, produce a Quarto site containing a welcome page, an overview page (with the same text as the overview of this README), a data and methods page, aggregated and yearly results pages, and a references page. There’s also an R script file called “data_work” that has the code I used to get all the data into shape for the site. Program efficiency and conciseness could be improved, but I just started learning R three months ago so give me a break.</p>
+<p>That’s pretty much it! There’s more detailed information about how I did everything and what I used in the .qmd files described above so be sure to check there if anything is unclear. If there are any errors or suggestions then please let me know. Enjoy!</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
