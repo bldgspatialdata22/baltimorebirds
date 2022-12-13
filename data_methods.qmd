@@ -1,0 +1,65 @@
+---
+title: "Data and Methods"
+editor: visual
+---
+
+## Data
+
+This project draws on two primary data sources: the eBird database and Retrosheet.
+
+**eBird**
+
+-   This is a database of bird sightings maintained by The Cornell Lab of Ornithology at Cornell University. Sightings are submitted by private citizens around the world and are then vetted autonomously and, if deemed necessary, manually by lab staff before being included in a free, publicly available file (though files must be requested via the eBird site). Observations in the data go all the way back to 1882 and come from around the world, but I will only be using sightings from 2012 to 2021 to keep things manageable, and only from the US and Canada because those are the only two countries with Major League Baseball teams.
+
+-   In addition to information about the birds observed, the file also includes location information about the bird sighting at the macro (e.g., country, state) and micro levels (e.g., lat/long, comments such as "my backyard") and when the sighting occurred. Bird sightings are submitted in the form of standardized checklists and [according to the eBird website](https://ebird.org/region/world/regions?yr=curM&hsStats_sortBy=num_checklists) at least one checklist has been submitted from nearly 200 countries, though the vast majority have been from the US and Canada.
+
+-   The eBird site linked above notes that there are over 800,000 "eBirders", but it is unclear how many of these folks submit sightings (and how often) and how many just browse the site or use the data. The qualifications of those submitting checklists is also unknown, but the lab has a vetting process for sightings and I assume anyone who takes the time to send in bird sighting reports to a bird sighting database probably has some specialized knowledge or at least enhanced interest in this field. All the same, this is obviously an active community of contributors.
+
+**Retrosheet**
+
+-   [According to its website](https://www.retrosheet.org/), "Retrosheet was founded in 1989 for the purpose of computerizing play-by-play accounts of as many pre-1984 major league games as possible". Since its founding, it seems the site has expanded to include mountains of data on games both before and after 1984, as well as a handful of Negro League seasons from the 1940s. Pretty cool!
+
+-   [There's too much on the Retrosheet site to describe all of it here](https://www.retrosheet.org/site.htm#), (baseball data going back to 1877!!!) so I'm going to stick with a high level overview of the types of available data. For this project I used the retrosheet API package in R to download game logs for each season from 2012 to 2021, the latest year such data were available. Each season's game log file contains loads of information on every MLB game played that year, including the winning and losing pitchers; where and when the game was played; and statistics such as the number of hits, runs, walks, strikeouts, and literally dozens of other things for each team in each game. Game logs can be freely downloaded directly from the Retrosheet website as a compressed text file, but using the retrosheet API package allowed me to skip this step and obtain them as data frames for use in R.
+
+-   Other types of data available for download from Retrosheet, either from the site or using the API, include play-by-play files "containing literally every play in the included games", and files containing schedules, transactions, ejections, and biographical data.
+
+-   [Per the Retrosheet website as a requirement of data use](https://www.retrosheet.org/notice.txt): The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at "www.retrosheet.org".
+
+## Methods
+
+I was able to request that the eBird data only include sightings of the Baltimore oriole so the first step upon receiving the file was to exclude all sightings made outside of the US and Canada before 2012 and after 2021, as well as records that did not have latitude/longitude. This yielded a file with 1,016,952 observations. The distinct time spans and names of the oriole's breeding seasons were taken from [a wonderful project from the eBird folks](https://science.ebird.org/en/status-and-trends/species/balori/abundance-map) in which they used eBird data to map population changes of a number of birds from 2007 to 2021. The four seasons and their spans as given on the eBird site are:
+
+-   Breeding - June 7 to July 27
+
+-   Non-breeding - December 7 to March 29
+
+-   Pre-breeding migratory - April 5 to May 31
+
+-   Post-breeding migratory - August 3 to November 30
+
+Each end of the season spans were rounded to the nearest beginning or end of the month to close the gaps between seasons and a new categorical variable was added to the eBird file to indicate which season the observation occurred.
+
+Next, I used the retrosheet API package to obtain game logs for every MLB season from 2012 to 2021 from the Retrosheet site. All non-Orioles games were removed, resulting in nine files with 162 games (i.e., the length of a normal MLB regular season) and one file with 60 games from the COVID-shortened 2020 season. Only regular season games were used for this project, so no spring training, preseason, or postseason games. Each game log contained dozens of variables ([here's a list on retrosheet.org](https://www.retrosheet.org/gamelogs/glfields.txt)), many of which were advanced statistics that either seemed unnecessary for this project or I just didn't know what they were, so each file was reduced to the stats shown in the table below and grouped into hitting, pitching, and fielding categories. Note that there were two of each hitting, pitching, and fielding variable, one for the Orioles and one for the opponent. Also, no special considerations were made for doubleheaders, make up games, or any other schedule irregularities. This means, for example, the 7-inning doubleheaders in 2020 and 2021 were counted as normal games and those games' statistics were not weighted any differently.
+
+| Game Characteristics | Hitting              | Pitching                | Fielding            |
+|----------------------|----------------------|-------------------------|---------------------|
+| Date                 | Runs scored          | Number of pitchers used | Assists             |
+| Day of the week      | Hits                 | Earned runs             | Errors              |
+| Day or night game    | Batting average      | Wild pitches            | Pass balls          |
+| Ballpark played in   | Doubles              | Balks                   | Double plays turned |
+| Orioles win or loss  | Triples              |                         |                     |
+| Orioles opponent     | Home runs            |                         |                     |
+| Home or away game    | Walks                |                         |                     |
+|                      | Strikeouts           |                         |                     |
+|                      | Stolen bases         |                         |                     |
+|                      | Runners left on base |                         |                     |
+
+With the oriole and Orioles data in the desired shape, the next step was identifying which games were played (a) *during* each of the bird's breeding seasons and (b) *within* each of the bird's geographic breeding season ranges. The same categorical season variable described above that was added to the eBird file was created for the game log using the game date. In 2012, the first year of the study period, the Orioles played 53 games during the oriole's breeding season, 58 games during the post-breeding migratory season, 51 games during the pre-breeding migratory season, and none during the non-breeding/wintering season. Though this is only the distribution for a single year each year was roughly similar.
+
+Determining whether each game was physically located in one of the breeding range required a few extra steps. First, a city variable was added to each game log indicating where the game was played. This variable took the value of the city of whichever team was listed as the home team, regardless of where the game was actually played (though I don't know if the home team was ever *not* the hosting team). Centroids for each city were then found by geocoding with OpenStreetMap via the tidygeocoder package in R.
+
+Next, eBird observations were summed at the state level and all observations made in states in the bottom 0.01 percentile were removed. For example, of the 35,157 included oriole sightings in 2012, one was made in California, one in Wyoming, and six were made in New Mexico. The extent of the westward expansion of one or more of the seasonal ranges that would have occurred had these sightings been included seemed disproportionate to the number of sightings in and around those areas so they were removed. In other words, these outliers were messing up my distributions and they were handled. The eBird files were then split into three separate sets, one for each breeding season (there were no games played in the non-breeding/wintering season so those bird sightings were excluded), and a map of the continental US and Canada was cropped to only include areas with bird sightings in each breeding season. This essentially converted the collection of points in eBird into a single polygon by drawing a border around the edge of the collection of sighting locations and removing all parts of the map outside of this new border. The game log file was then split into separate files according to which bird season the games were played in, a spatial join was performed to each corresponding seasonal polygon map, and a new categorical variable was added indicating whether each game was played within the geographic seasonal range. One wrinkle worth noting here is that New York City was left out of the spatial join even though it pretty clearly belonged there based on the map of bird sightings, and nearby cities like Boston and Philadelphia were included in the join. To remedy this, all games the Orioles played in New York, either against the Mets or Yankees, were coded to have taken place in Buffalo, NY. This seemed like a safe edit since I was only interested where the games took place and not in any characteristics of the locations specifically, like the weather or local flora/fauna.
+
+Finally, the separate game log files were appended back together and a series of tables were made comparing mean values of the various hitting, pitching, and fielding statistics according to when and where the games were played. Tables for each Orioles season can be found in the Results tab.
+
+All data work and analyses were performed using R Statistical Software (v4.2.1; R Core Team 2022).

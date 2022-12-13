@@ -1,0 +1,17 @@
+---
+title: "Welcome!"
+author: Tim Williams
+date: November 29, 2022
+---
+
+This is a site for my final project in the fall 2022 semester of GES 600: Building Spatial Data Sets. Use the sidebar on the left to learn more about the project and to explore the results.
+
+A brief tour just to get you acclimated:
+
+-   Project Overview - Here you'll find a short description of the project, including it's purpose and goals.
+
+-   Data and Methods - A much more detailed description of the project, the data I used, and how I went about getting the results.
+
+-   Results - A bunch of tables with a bunch of numbers. Clicking the main Results tab will take you to a page with aggregated findings for all years of the study period (2012 to 2021), while clicking the arrow next to it will open a dropdown list with results for each individual year.
+
+-   References - Giving credit to all of the amazing sites and people whose materials I used to do this project.

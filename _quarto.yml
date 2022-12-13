@@ -1,5 +1,36 @@
 project:
-  title: "baltimorebirds"
+  type: website
+
+website:
+  title: "The Baltimore Orioles and Baltimore orioles"
+  sidebar:
+    style: "docked"
+    search: true
+    collapse-level: 1
+    contents:
+      - href: index.qmd
+        text: Welcome!
+      - overview.qmd
+      - data_methods.qmd
+      - section: results/results_main.qmd
+        contents: 
+          - results/results_2012.qmd
+          - results/results_2013.qmd
+          - results/results_2014.qmd
+          - results/results_2015.qmd
+          - results/results_2016.qmd
+          - results/results_2017.qmd
+          - results/results_2018.qmd
+          - results/results_2019.qmd
+          - results/results_2020.qmd
+          - results/results_2021.qmd
+      - references.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
 
 editor: visual
 

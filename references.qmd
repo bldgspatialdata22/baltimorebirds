@@ -1,0 +1,18 @@
+---
+title: "Sources and References"
+editor: visual
+---
+
+Cornell Lab of Ornithology (2022). eBird Basic Dataset. Version: EBD_relSep-2022. Ithaca, New York.
+
+Douglas C, Scriven R (2021). \_retrosheet: Import Professional Baseball Data from 'Retrosheet'\_. R package version 1.1.4, \<https://CRAN.R-project.org/package=retrosheet\>.
+
+Fink, D., T. Auer, A. Johnston, M. Strimas-Mackey, S. Ligocki, O. Robinson, W. Hochachka, L. Jaromczyk, A. Rodewald, C. Wood, I. Davies, A. Spencer. 2022. eBird Status and Trends, Data Version: 2021; Released: 2022. Cornell Lab of Ornithology, Ithaca, New York. https://doi.org/10.2173/ebirdst.2021
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+Iannone R, Cheng J, Schloerke B, Hughes E (2022). \_gt: Easily Create Presentation-Ready Display Tables\_. R package version 0.7.0, \<https://CRAN.R-project.org/package=gt\>.
+
+R Core Team (2022). R: A language and environment for statistical computing version 4.1.2. R Foundation for Statistical Computing, Vienna, Austria. URL https://www.R-project.org/.
+
+South A (2017). \_rnaturalearth: World Map Data from Natural Earth\_. R package version 0.1.0 \<https://CRAN.R-project.org/package=rnaturalearth\>.

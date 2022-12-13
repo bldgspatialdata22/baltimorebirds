@@ -1,0 +1,364 @@
+---
+title: "Results, 2013 Season"
+editor: visual
+---
+
+## Record
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(bird_season, game_result) |>
+  summarise(win_lose = n()) |>
+  
+  gt() |>
+  tab_header(
+    title = md("**Table 1. Baltimore Orioles Record by Breeding Season**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(win_lose)) |>
+  cols_label(
+    win_lose = "",
+    game_result = ""
+  )
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(range_flag, game_result) |>
+  summarise(win_lose = n()) |>
+  
+  gt() |>
+  tab_header(
+    title = md("**Table 2. Baltimore Orioles Record by Whether Game was Played In or Out of Seasonal Breeding Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(win_lose)) |>
+  cols_label(
+    win_lose = "",
+    game_result = ""
+  )
+
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(ggplot2)
+library(rnaturalearth)
+library(dplyr)
+library(here)
+
+birds_2013_sf <-
+  read.csv(here("data", "birds", "birds_2013.csv"))
+
+us_canada_fig1 <-
+  ne_countries(scale = "medium", returnclass = "sf") |>
+  filter(type == "Country" | type == "Sovereign country") |>
+  filter(sovereignt == "United States of America" | sovereignt == "Canada")
+
+birds_2013_sf_fig1 <-
+  birds_2013_sf |>
+  filter(state_perc > 0.0001)
+
+ggplot() +
+  geom_sf(data = us_canada_fig1) +
+  coord_sf(xlim = c(-125.0, -55.0), ylim = c(20.0, 55.0)) +
+  geom_point(data = birds_2013_sf_fig1, 
+             aes(x = LONGITUDE, y = LATITUDE, color = "red")) +
+  facet_wrap(~ season) +
+  theme(legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()) +
+  ggtitle(label = "Figure 1. Breeding and Migratory Ranges \nof the Baltimore Oriole, 2013") +
+  xlab("") +
+  ylab("")
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(bird_season, range_flag, game_result) |>
+  summarise(win_lose = n()) |>
+  
+  gt() |>
+  tab_header(
+    title = md("**Table 3. Baltimore Orioles Record by Breeding Season and Whether Game Was Played In or Out of the Seasonal Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(win_lose)) |>
+  cols_label(
+    win_lose = "",
+    game_result = ""
+  )
+```
+
+## Batting Stats
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(bird_season, range_flag) |>
+  summarise(games = n(),
+            mean_bal_BA = mean(bal_BA),
+            mean_opp_BA = mean(opp_BA),
+            mean_bal_h = mean(bal_H),
+            mean_opp_h = mean(opp_H),
+            mean_bal_doub = mean(bal_doubles),
+            mean_opp_doub = mean(opp_doubles),
+            mean_bal_trip = mean(bal_triples),
+            mean_opp_trip = mean(opp_triples),
+            mean_bal_hr = mean(bal_HR),
+            mean_opp_hr = mean(opp_HR)
+            ) |>
+  gt() |>
+  tab_header(
+    title = md("**Table 4a. Comparison of Selected Batting Stats Stratified by Breeding Season and Breeding/Migratory Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(games)
+  ) |>
+  cols_label(
+    range_flag = html("Season & In <br>or Out of Range"),
+    games = html("# of <br>Games"),
+    mean_bal_BA = html("Mean <br>BAL BA"),
+    mean_opp_BA = html("Mean <br>Opp. BA"),
+    mean_bal_h = html("Mean <br>BAL Hits"),
+    mean_opp_h = html("Mean <br>Opp. Hits"),
+    mean_bal_doub = html("Mean <br>BAL Doubles"),
+    mean_opp_doub = html("Mean <br>Opp. Doubles"),
+    mean_bal_trip = html("Mean <br>BAL Triples"),
+    mean_opp_trip = html("Mean <br>Opp. Triples"),
+    mean_bal_hr = html("Mean <br>BAL HR"),
+    mean_opp_hr = html("Mean <br>Opp. HR"),
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_BA, mean_opp_BA),
+    decimals = 3
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_h, mean_opp_h,
+                mean_bal_doub, mean_opp_doub,
+                mean_bal_trip, mean_opp_trip,
+                mean_bal_hr, mean_opp_hr),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = games,
+    decimals  = 0
+  )
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(bird_season, range_flag) |>
+  summarise(games = n(),
+            mean_bal_runs = mean(bal_runs),
+            mean_opp_runs = mean(opp_runs),
+            mean_bal_bb = mean(bal_BB),
+            mean_opp_bb = mean(opp_BB),
+            mean_bal_k = mean(bal_hitters_K),
+            mean_opp_k = mean(opp_hitters_K),
+            mean_bal_sb = mean(bal_SB),
+            mean_opp_sb = mean(opp_SB),
+            mean_bal_lob = mean(bal_LOB),
+            mean_opp_lob = mean(opp_LOB)
+            ) |>
+  gt() |>
+  tab_header(
+    title = md("**Table 4b. Comparison of Selected Batting Stats Stratified by Breeding Season and Breeding/Migratory Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(games)
+  ) |>
+  cols_label(
+    range_flag = html("Season & In <br>or Out of Range"),
+    games = html("# of <br>Games"),
+    mean_bal_runs = html("Mean <br>BAL Runs"),
+    mean_opp_runs = html("Mean <br>Opp. Runs"),
+    mean_bal_bb = html("Mean <br>BAL Walks"),
+    mean_opp_bb = html("Mean <br>Opp. Walks"),
+    mean_bal_k = html("Mean <br>BAL Ks"),
+    mean_opp_k = html("Mean <br>Opp. Ks"),
+    mean_bal_sb = html("Mean <br>BAL SBs"),
+    mean_opp_sb = html("Mean <br>Opp. SBs"),
+    mean_bal_lob = html("Mean <br>BAL LOB"),
+    mean_opp_lob = html("Mean <br>Opp. LOB")
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_runs, mean_opp_runs,
+                mean_bal_bb, mean_opp_bb,
+                mean_bal_k, mean_opp_k,
+                mean_bal_sb, mean_opp_sb,
+                mean_bal_lob, mean_opp_lob),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = games,
+    decimals  = 0
+  )
+
+```
+
+## Pitching Stats
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013|>
+  group_by(bird_season, range_flag) |>
+  summarise(games = n(),
+            mean_bal_er = mean(bal_team_ER),
+            mean_opp_er = mean(opp_team_ER),
+            mean_bal_wp = mean(bal_WP),
+            mean_opp_wp = mean(opp_WP),
+            mean_bal_balks = mean(bal_balks),
+            mean_opp_balks = mean(opp_balks),
+            mean_bal_n_pitchers = mean(bal_num_pitchers),
+            mean_opp_n_pitchers = mean(opp_num_pitchers)
+            ) |>
+  gt() |>
+  tab_header(
+    title = md("**Table 5. Comparison of Selected Pitching Stats Stratified by Breeding Season and Breeding/Migratory Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(games)
+  ) |>
+  cols_label(
+    range_flag = html("Season & In <br>or Out of Range"),
+    games = html("# of <br>Games"),
+    mean_bal_er = html("Mean <br>BAL Earned Runs"),
+    mean_opp_er = html("Mean <br>Opp. Earned Runs"),
+    mean_bal_wp = html("Mean <br>BAL Wild Pitches"),
+    mean_opp_wp = html("Mean <br>Opp. Wild Pitches"),
+    mean_bal_balks = html("Mean <br>BAL Balks"),
+    mean_opp_balks = html("Mean <br>Opp. Balks"),
+    mean_bal_n_pitchers = html("Mean <br>BAL # Pitchers"),
+    mean_opp_n_pitchers = html("Mean <br>Opp. # Pitchers")
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_er, mean_opp_er,
+                mean_bal_wp, mean_opp_wp,
+                mean_bal_balks, mean_opp_balks,
+                mean_bal_n_pitchers, mean_opp_n_pitchers
+                ),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = games,
+    decimals  = 0
+  )
+
+
+```
+
+## Fielding Stats
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+
+library(gt)
+library(dplyr)
+library(here)
+
+orioles_log_final_2013 <-
+  read.csv(here("data", "baseball", "orioles_log_final_2013.csv"))
+
+orioles_log_final_2013 |>
+  group_by(bird_season, range_flag) |>
+  summarise(games = n(),
+            mean_bal_assists = mean(bal_assists),
+            mean_opp_assists = mean(opp_assists),
+            mean_bal_errors = mean(bal_errors),
+            mean_opp_errors = mean(opp_errors),
+            mean_bal_pass_balls = mean(bal_pass_balls),
+            mean_opp_pass_balls = mean(opp_pass_balls),
+            mean_bal_doub_plays = mean(bal_double_play),
+            mean_opp_doub_plays = mean(opp_douple_play) #typo in var name
+            ) |>
+  gt() |>
+  tab_header(
+    title = md("**Table 6. Comparison of Selected Fielding Stats Stratified by Breeding Season and Breeding/Migratory Range**"), # md("** **") makes label bold
+    subtitle = "2013 MLB Season"
+  ) |>
+  cols_move_to_start(
+    columns = c(games)
+  ) |>
+  cols_label(
+    range_flag = html("Season & In <br>or Out of Range"),
+    games = html("# of <br>Games"),
+    mean_bal_assists = html("Mean <br>BAL Assists"),
+    mean_opp_assists = html("Mean <br>Opp. Assists"),
+    mean_bal_errors = html("Mean <br>BAL Errors"),
+    mean_opp_errors = html("Mean <br>Opp. Errors"),
+    mean_bal_pass_balls = html("Mean <br>BAL Pass Balls"),
+    mean_opp_pass_balls = html("Mean <br>Opp. Pass Balls"),
+    mean_bal_doub_plays = html("Mean <br>BAL Double Plays Turned"),
+    mean_opp_doub_plays = html("Mean <br>Opp. Double Plays Turned")
+  ) |>
+  fmt_number(
+    columns = c(mean_bal_assists, mean_opp_assists,
+                mean_bal_errors, mean_opp_errors,
+                mean_bal_pass_balls, mean_opp_pass_balls,
+                mean_bal_doub_plays, mean_opp_doub_plays
+                ),
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = games,
+    decimals  = 0
+  )
+
+
+
+```
