@@ -1,0 +1,85 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# baltimorebirds
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+baltimorebirds is my final project for the course GES 600, Building
+Spatial Data Sets, taught by Eli Pousson in the Department of Geography
+and Environmental Systems at the University of Maryland, Baltimore
+County.
+
+The purpose of this project is to evaluate various metrics of the
+Baltimore Orioles baseball team when they play games within the breeding
+grounds and during the breeding season of the Baltimore oriole bird
+relative to when they play teams outside of the bird’s breeding grounds
+and breeding season. Using eBird data from [The Cornell Lab of
+Ornithology](https://ebird.org/home) I divided the baseball season into
+four bird breeding seasons: Pre-breeding Migratory, Breeding,
+Post-breeding Migratory, and Non-breeding/Wintering. I then defined
+geographic breeding season “ranges” across the United States and Canada
+based on where the oriole had been observed during each of the four
+breeding seasons. Next, I used game-level data from the baseball
+statistics website [Retrosheet](https://www.retrosheet.org/) to find
+dates and locations for Orioles games each year from 2012 to 2021 to
+find when the Orioles played (a) *during* each of the bird’s breeding
+seasons and (b) *within* each of the bird’s geographic breeding season
+ranges. Tables were then made using the same Retrosheet data to make
+intra- and inter-breeding season comparisons of various aggregate
+hitting, pitching, and fielding statistics.
+
+This project’s primary goal is to serve as a practical exercise wherein
+I apply skills learned this semester for exploring, manipulating, and
+visualizing spatial data. I also combine two allegedly unrelated data
+sources, one spatial (bird sightings) and one not spatial (baseball game
+statistics), to create at least one new and novel data set to help
+humankind finally begin elucidating the mysterious relationship between
+sports teams and the animals upon which they and their legions of fans
+build their identities.
+
+I fully understand that this project, as originally envisioned and
+ultimately executed, will provide little to no value to either baseball
+or the field of ornithology. If I found something that others consider
+useful or beneficial, that’s great! But it is not and was never the
+point. The point is skill building and having fun bringing together
+worlds that probably don’t interact very often and seeing what happens.
+I should also note that I love baseball but I’m not a bird watcher or
+bird hobbyist or anything, so I must beg forgiveness for any affronts to
+the field of ornithology that this project almost certainly contains.
+
+## What’s in this repo?
+
+A bunch of stuff, but I’ll point out the notable pieces here. The Quarto
+markdown (.qmd) file titled “baltimorebirds_proposal” is an outline of
+the project as I envisioned it before actually starting it. I mostly
+stuck to the plan laid out in this document, though I did end up trading
+out the baseballr package for the retrosheet package because the latter
+package parsed baseball data and brought it into R already in the shape
+I needed whereas data obtained using the former package would have
+required a bit more work.
+
+The .qmd file titled “baltimorebirds_exploratory” is where I played
+around with packages and data to see what I had and what I could do.
+There’s a lot of trial and error in here but I was eventually able to
+find the approach that I used for the final product. I didn’t bother
+cleaning this file up much so there are a lot of thoughts and comments
+to myself, and parts of the document don’t seem to have a logical order.
+It seems more honest to leave it as is. Also I’m lazy.
+
+The “baltimorebirds_site” folder contains what could be considered the
+final deliverable for this project. There are several .qmd files in this
+folder that, when rendered as HTML together, produce a Quarto site
+containing a welcome page, an overview page (with the same text as the
+overview of this README), a data and methods page, aggregated and yearly
+results pages, and a references page. There’s also an R script file
+called “data_work” that has the code I used to get all the data into
+shape for the site. Program efficiency and conciseness could be
+improved, but I just started learning R three months ago so give me a
+break.
+
+That’s pretty much it! There’s more detailed information about how I did
+everything and what I used in the .qmd files described above so be sure
+to check there if anything is unclear. If there are any errors or
+suggestions then please let me know. Enjoy!
